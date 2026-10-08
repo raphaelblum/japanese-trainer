@@ -1,0 +1,8 @@
+.DS_Store
+__pycache__/
+*.pyc
+
+# Laufzeitdaten des lokalen Servers (Profile, Statistik)
+data/
+
+.claude/settings.local.json

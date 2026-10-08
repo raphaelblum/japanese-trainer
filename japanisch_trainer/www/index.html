@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Japanisch Trainer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#home" title="Zur Startseite"><span class="brand-mark" id="brand-mark" lang="ja">かな</span><span class="brand-text"><small>Startseite</small><span id="brand-name">Japanisch üben</span></span></a>
+      <nav class="tabs" data-section="kana" aria-label="Kana Trainer" hidden>
+        <a href="#quiz" data-view="quiz">Üben</a>
+        <a href="#stats" data-view="stats">Analyse</a>
+        <a href="#table" data-view="table">Übersicht</a>
+      </nav>
+      <nav class="tabs" data-section="vocab" aria-label="Vokabeltrainer" hidden>
+        <a href="#vocab" data-view="vocab">Üben</a>
+        <a href="#words" data-view="words">Meine Wörter</a>
+      </nav>
+      <button type="button" class="profile-chip" id="profile-chip" hidden></button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Startseite -->
+    <section id="view-home" class="view" aria-label="Startseite">
+      <h1 class="home-title">Was möchtest du üben?</h1>
+      <div class="home-grid">
+        <a class="home-card" href="#quiz">
+          <span class="home-mark" lang="ja">かな</span>
+          <span class="home-body">
+            <strong>Kana Trainer</strong>
+            <span>Hiragana und Katakana lesen – einzelne Zeichen, Wörter und ganze Sätze.</span>
+            <small id="home-kana-stat"></small>
+          </span>
+          <span class="home-go" aria-hidden="true">→</span>
+        </a>
+        <a class="home-card vocab" href="#vocab">
+          <span class="home-mark" lang="ja">ことば</span>
+          <span class="home-body">
+            <strong>Vokabeltrainer</strong>
+            <span>Eure gemeinsame Wortliste, abgefragt in beide Richtungen: Deutsch ⇄ Japanisch.</span>
+            <small id="home-vocab-stat"></small>
+          </span>
+          <span class="home-go" aria-hidden="true">→</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- Kana Trainer: Quiz -->
+    <section id="view-quiz" class="view" aria-label="Üben" hidden>
+      <div class="toolbar">
+        <div class="seg" id="quiz-mode" role="group" aria-label="Übungsart">
+          <button type="button" data-mode="kana">Zeichen</button>
+          <button type="button" data-mode="word">Wörter</button>
+          <button type="button" data-mode="sentence">Sätze</button>
+        </div>
+        <div class="seg" id="quiz-script" role="group" aria-label="Schrift">
+          <button type="button" data-script="h">Hiragana</button>
+          <button type="button" data-script="k">Katakana</button>
+          <button type="button" data-script="hk">Beide</button>
+        </div>
+        <div class="seg" id="quiz-level" role="group" aria-label="Schwierigkeit" hidden>
+          <button type="button" data-level="1">Leicht</button>
+          <button type="button" data-level="2">Mittel</button>
+          <button type="button" data-level="3">Schwer</button>
+          <button type="button" data-level="all">Alle</button>
+        </div>
+        <button type="button" class="btn ghost" id="toggle-settings" aria-expanded="false" aria-controls="settings">
+          Zeichen wählen <span class="count" id="pool-count"></span>
+        </button>
+      </div>
+
+      <div class="banner" id="focus-banner" hidden>
+        <span>Fokus-Training: deine <strong id="focus-count"></strong> Problemzeichen</span>
+        <button type="button" class="btn small" id="focus-end">Beenden</button>
+      </div>
+
+      <div class="panel" id="settings" hidden></div>
+
+      <div class="card" id="card">
+        <div class="card-meta" id="card-meta"></div>
+        <div class="kana" id="kana" lang="ja"></div>
+        <div class="phrase" id="phrase" lang="ja" hidden></div>
+        <form id="answer-form" class="answer" autocomplete="off">
+          <input id="answer" type="text" inputmode="latin" autocapitalize="off" autocorrect="off" spellcheck="false"
+                 placeholder="Romaji eintippen …" aria-label="Romaji">
+          <button type="submit" class="btn primary" id="submit-btn">Prüfen</button>
+        </form>
+        <div class="feedback" id="feedback" aria-live="polite"></div>
+        <div class="meaning" id="meaning" hidden></div>
+        <div class="card-foot">
+          <button type="button" class="link" id="skip">Weiß ich nicht</button>
+          <span class="item-info" id="item-info"></span>
+        </div>
+        <div class="empty" id="empty" hidden>
+          Keine Zeichen ausgewählt. Öffne „Zeichen wählen“ und aktiviere mindestens eine Reihe.
+        </div>
+      </div>
+
+      <div class="session" id="session"></div>
+      <p class="hint" id="quiz-hint"></p>
+    </section>
+
+    <!-- Analyse -->
+    <section id="view-stats" class="view" aria-label="Analyse" hidden>
+      <div class="kpis" id="kpis"></div>
+
+      <div class="block">
+        <div class="block-head">
+          <h2>Deine Problemzeichen</h2>
+          <button type="button" class="btn primary small" id="train-weak">Diese gezielt üben</button>
+        </div>
+        <p class="sub">Sortiert nach deinen letzten 10 Antworten pro Zeichen. Diese Zeichen werden im Quiz häufiger abgefragt.</p>
+        <div class="weak-list" id="weak-list"></div>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <h2>Trefferquote pro Zeichen</h2>
+          <div class="seg" id="heat-script" role="group" aria-label="Schrift">
+            <button type="button" data-script="h">Hiragana</button>
+            <button type="button" data-script="k">Katakana</button>
+          </div>
+        </div>
+        <div class="legend" aria-hidden="true">
+          <span><i class="sw" style="--acc:0"></i>0 %</span>
+          <span><i class="sw" style="--acc:.5"></i>50 %</span>
+          <span><i class="sw" style="--acc:1"></i>100 %</span>
+          <span><i class="sw unseen"></i>noch nicht geübt</span>
+        </div>
+        <div id="heatmap"></div>
+      </div>
+
+      <div class="block">
+        <h2>Letzte 14 Tage</h2>
+        <div class="legend" aria-hidden="true">
+          <span><i class="sw good"></i>richtig</span>
+          <span><i class="sw bad"></i>falsch</span>
+        </div>
+        <div class="days" id="days"></div>
+      </div>
+
+      <div class="block danger-zone">
+        <button type="button" class="btn ghost small" id="reset">Meine Kana-Statistik zurücksetzen</button>
+      </div>
+    </section>
+
+    <!-- Übersicht -->
+    <section id="view-table" class="view" aria-label="Übersicht" hidden>
+      <div class="toolbar">
+        <div class="seg" id="table-script" role="group" aria-label="Schrift">
+          <button type="button" data-script="h">Hiragana</button>
+          <button type="button" data-script="k">Katakana</button>
+          <button type="button" data-script="hk">Beide</button>
+        </div>
+        <span class="sub" id="speak-hint"></span>
+      </div>
+      <div id="table"></div>
+    </section>
+
+    <!-- Vokabeltrainer: Üben -->
+    <section id="view-vocab" class="view" aria-label="Vokabeln üben" hidden>
+      <div class="toolbar">
+        <div class="seg" id="vocab-dir" role="group" aria-label="Richtung">
+          <button type="button" data-dir="both"><span class="lg">Beide Richtungen</span><span class="sm">Beide</span></button>
+          <button type="button" data-dir="dj"><span class="lg">Deutsch → Japanisch</span><span class="sm">DE → JP</span></button>
+          <button type="button" data-dir="jd"><span class="lg">Japanisch → Deutsch</span><span class="sm">JP → DE</span></button>
+        </div>
+        <a class="btn ghost" href="#words">Wörter verwalten <span class="count" id="vocab-count"></span></a>
+      </div>
+
+      <div class="card vocab-card" id="vcard">
+        <div class="card-meta" id="v-meta"></div>
+        <div class="v-prompt" id="v-prompt"></div>
+        <div class="v-sub" id="v-sub"></div>
+        <form id="v-form" class="answer" autocomplete="off">
+          <input id="v-answer" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Antwort">
+          <button type="submit" class="btn primary" id="v-submit">Prüfen</button>
+        </form>
+        <div class="feedback" id="v-feedback" aria-live="polite"></div>
+        <div class="card-foot">
+          <button type="button" class="link" id="v-skip">Weiß ich nicht</button>
+          <span class="item-info" id="v-info"></span>
+        </div>
+        <div class="empty" id="v-empty" hidden>
+          <p>Du hast noch keine eigenen Wörter.</p>
+          <a class="btn primary" href="#words">Erstes Wort hinzufügen</a>
+        </div>
+      </div>
+
+      <div class="session" id="v-session"></div>
+      <p class="hint">Enter = prüfen / weiter · Mehrere richtige Antworten im Wort mit „/“ oder „,“ trennen · Lange Vokale: oo, ou und ō zählen gleich.</p>
+    </section>
+
+    <!-- Vokabeltrainer: Meine Wörter -->
+    <section id="view-words" class="view" aria-label="Meine Wörter" hidden>
+      <div class="block">
+        <div class="block-head">
+          <h2 id="word-form-title">Wort hinzufügen</h2>
+        </div>
+        <form id="word-form" class="word-form" autocomplete="off">
+          <label>
+            <span>Deutsch</span>
+            <input name="de" required placeholder="z. B. Erdbeere">
+          </label>
+          <label>
+            <span>Japanisch (Romaji)</span>
+            <input name="jp" required placeholder="z. B. ichigo" autocapitalize="off" spellcheck="false">
+          </label>
+          <label>
+            <span>Kana / Kanji <small>optional</small></span>
+            <input name="kana" placeholder="z. B. いちご" lang="ja" spellcheck="false">
+          </label>
+          <label>
+            <span>Notiz <small>optional</small></span>
+            <input name="note" placeholder="z. B. auch: Erdbeerkuchen = ichigo keeki">
+          </label>
+          <div class="word-form-actions">
+            <span class="sub" id="word-form-msg" aria-live="polite"></span>
+            <button type="button" class="btn ghost" id="word-cancel" hidden>Abbrechen</button>
+            <button type="submit" class="btn primary" id="word-save">Hinzufügen</button>
+          </div>
+        </form>
+        <details class="bulk">
+          <summary>Mehrere Wörter auf einmal einfügen</summary>
+          <p class="sub">Ein Wort pro Zeile: <code>Deutsch = Romaji</code>, optional <code>= Kana</code>. Beispiel: <code>Erdbeere = ichigo = いちご</code></p>
+          <textarea id="bulk-text" rows="5" spellcheck="false" placeholder="Erdbeere = ichigo = いちご&#10;Apfel = ringo&#10;Katze = neko = ねこ"></textarea>
+          <div class="word-form-actions">
+            <span class="sub" id="bulk-msg" aria-live="polite"></span>
+            <button type="button" class="btn ghost" id="bulk-add">Alle hinzufügen</button>
+          </div>
+        </details>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <h2>Meine Wörter <span class="count-pill" id="words-count"></span></h2>
+          <input type="search" id="word-search" class="search" placeholder="Suchen …" aria-label="Wörter durchsuchen">
+        </div>
+        <div class="word-list" id="word-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+  <dialog class="profile-dialog" id="profile-dialog" aria-label="Profil wählen"></dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="util.js"></script>
+  <script src="kana.js"></script>
+  <script src="sentences.js"></script>
+  <script src="store.js"></script>
+  <script src="vocab.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

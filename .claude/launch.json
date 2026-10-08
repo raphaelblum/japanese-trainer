@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "kana",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["japanisch_trainer/server.py", "--port", "5178", "--data", "data"],
+      "port": 5178
+    },
+    {
+      "name": "kana-alt",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["japanisch_trainer/server.py", "--port", "5179", "--data", "data"],
+      "port": 5179
+    }
+  ]
+}
