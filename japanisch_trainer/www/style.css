@@ -729,7 +729,6 @@ select.search { cursor: pointer; }
 .profile-pick:hover { border-color: var(--accent); }
 .profile-pick small { color: var(--muted); font-weight: 400; }
 .profile-item.current .profile-pick { border-color: var(--accent); background: var(--accent-soft); }
-.profile-pick.ha { border-style: dashed; }
 .profile-delete { font-size: 0.8rem; }
 .profile-new { display: flex; gap: 8px; align-items: flex-end; }
 .profile-new label { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; font-weight: 500; color: var(--ink-2); }

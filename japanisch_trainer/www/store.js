@@ -74,7 +74,7 @@
     mode: 'local',
     async state() {
       const shared = loadShared();
-      return { me: null, ...shared };
+      return shared;
     },
     async createProfile({ name }) {
       const shared = loadShared();
@@ -188,7 +188,6 @@
 
   const KanaStore = {
     mode: null,
-    me: null, // logged-in Home Assistant user, if any
     profile: null,
     profiles: [],
     words: [],
@@ -197,9 +196,8 @@
   };
   let backend = null;
 
-  // The chosen profile is remembered per device and per Home Assistant user, so a
-  // shared tablet keeps one choice per login.
-  const choiceKey = () => `jt:profile:${KanaStore.me?.id || 'local'}`;
+  // The chosen profile is remembered per device.
+  const choiceKey = () => 'jt:profile:local';
 
   // ---------- Saving ----------
 
@@ -327,8 +325,7 @@
       };
 
       const render = () => {
-        const { me, profiles } = KanaStore;
-        const haMissing = me && !profiles.some((p) => p.id === me.id);
+        const { profiles } = KanaStore;
         const input = h('input', { name: 'name', required: true, maxlength: '60', placeholder: 'Name, z. B. Raphael', autocomplete: 'off' });
         const status = h('p', { class: 'sub warn', 'aria-live': 'polite' });
 
@@ -359,7 +356,7 @@
                     'button',
                     { type: 'button', class: 'profile-pick', onclick: () => done(p.id) },
                     avatar(p.name),
-                    h('span', {}, p.name, p.ha ? h('small', {}, ' · Home Assistant') : null, p.id === KanaStore.profile?.id ? h('small', {}, ' · aktiv') : null),
+                    h('span', {}, p.name, p.id === KanaStore.profile?.id ? h('small', {}, ' · aktiv') : null),
                   ),
                   p.id === KanaStore.profile?.id
                     ? null
@@ -379,14 +376,6 @@
                       ),
                 ),
               ),
-              haMissing
-                ? h(
-                    'button',
-                    { type: 'button', class: 'profile-pick ha', onclick: () => create({ ha: true }) },
-                    avatar(me.name),
-                    h('span', {}, `Ich bin ${me.name}`, h('small', {}, ' · dein Home-Assistant-Benutzer')),
-                  )
-                : null,
             ),
             h(
               'form',
@@ -438,7 +427,6 @@
     const { backend: b, state } = await detectBackend();
     backend = b;
     KanaStore.mode = b.mode;
-    KanaStore.me = state.me;
     KanaStore.profiles = state.profiles;
     setVocab(state);
 

@@ -5,10 +5,7 @@ Data layout in the data directory:
   shared.json            profiles, the vocabulary list and its groups – shared by everybody
   users/<profile>.json   statistics and settings of one profile
 
-Behind Home Assistant ingress, the Supervisor adds the logged-in user as
-X-Remote-User-Id / X-Remote-User-Display-Name headers. The app offers a profile
-linked to that user; with a shared Home Assistant account, people pick or add
-their own profile in the app instead.
+People pick or add their own profile in the app.
 """
 
 import argparse
@@ -125,14 +122,6 @@ class Handler(SimpleHTTPRequestHandler):
         raw = self.rfile.read(length) if length else b""
         return json.loads(raw or b"null")
 
-    def ha_user(self):
-        user_id = self.headers.get("X-Remote-User-Id")
-        if not user_id:
-            return None
-        name = self.headers.get("X-Remote-User-Display-Name") or self.headers.get("X-Remote-User-Name") or "Ich"
-        # Home Assistant user ids are hex strings; keep the profile id file-name safe anyway.
-        return {"id": "ha-" + re.sub(r"[^A-Za-z0-9_-]", "", user_id)[:60], "name": name[:60]}
-
     def end_headers(self):
         if not self.path.startswith("/api/"):
             # Pick up new versions of the app right after an update.
@@ -218,26 +207,15 @@ class Handler(SimpleHTTPRequestHandler):
 
     def get_state(self):
         shared = load_shared()
-        self.send_json({"me": self.ha_user(), "profiles": shared["profiles"], **vocab(shared)})
+        self.send_json({"profiles": shared["profiles"], **vocab(shared)})
 
     def create_profile(self, body):
         body = body if isinstance(body, dict) else {}
         shared = load_shared()
-        me = self.ha_user()
-        if body.get("ha"):
-            # Profile linked to the logged-in Home Assistant user.
-            if not me:
-                return self.fail("Kein Home-Assistant-Benutzer angemeldet")
-            profile = next((p for p in shared["profiles"] if p["id"] == me["id"]), None)
-            if profile:
-                return self.send_json({"profile": profile, "profiles": shared["profiles"]})
-            profile = {"id": me["id"], "name": me["name"], "ha": True}
-        else:
-            name = body.get("name")
-            if not isinstance(name, str) or not name.strip():
-                return self.fail("Name fehlt")
-            profile = {"id": uuid.uuid4().hex[:12], "name": name.strip()[:60]}
-        profile["created"] = int(time.time() * 1000)
+        name = body.get("name")
+        if not isinstance(name, str) or not name.strip():
+            return self.fail("Name fehlt")
+        profile = {"id": uuid.uuid4().hex[:12], "name": name.strip()[:60], "created": int(time.time() * 1000)}
         shared["profiles"].append(profile)
         write_json(data_path("shared.json"), shared)
         self.send_json({"profile": profile, "profiles": shared["profiles"]})
