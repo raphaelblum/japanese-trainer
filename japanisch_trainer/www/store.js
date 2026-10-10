@@ -55,13 +55,21 @@
     words: () => request('GET', 'api/words'),
     addWords: (words) => request('POST', 'api/words', { words }),
     updateWord: (id, fields) => request('PUT', `api/words/${id}`, fields),
+    updateWords: (words) => request('PUT', 'api/words', { words }),
     deleteWord: (id) => request('DELETE', `api/words/${id}`),
+    ensureGroups: (names) => request('POST', 'api/groups', { names }),
+    renameGroup: (id, name) => request('PUT', `api/groups/${id}`, { name }),
+    deleteGroup: (id, withWords) => request('DELETE', `api/groups/${id}${withWords ? '?words=1' : ''}`),
   };
 
   // Same interface, kept in localStorage – used when no server is running.
   const SHARED_KEY = 'jt:local:shared';
   const userKey = (id) => `jt:local:user:${id}`;
-  const loadShared = () => ({ profiles: [], words: [], ...local.get(SHARED_KEY, {}) });
+  const loadShared = () => ({ profiles: [], words: [], groups: [], ...local.get(SHARED_KEY, {}) });
+  const vocabOf = (shared) => ({ words: shared.words, groups: shared.groups });
+  const cleanGroupName = (name) => String(name || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+  // Like the server: only groups that exist, each once.
+  const cleanGroups = (shared, groups) => [...new Set((groups || []).filter((g) => shared.groups.some((x) => x.id === g)))];
   const localBackend = {
     mode: 'local',
     async state() {
@@ -94,33 +102,75 @@
       return { ok: true };
     },
     async words() {
-      return { words: loadShared().words };
+      return vocabOf(loadShared());
     },
     async addWords(list) {
       const shared = loadShared();
       const ids = new Set(shared.words.map((w) => w.id));
       const added = list.map((w) => {
-        const word = { ...w, id: w.id && !ids.has(w.id) ? w.id : newId(), created: w.created || Date.now() };
+        const word = { ...w, groups: cleanGroups(shared, w.groups), id: w.id && !ids.has(w.id) ? w.id : newId(), created: w.created || Date.now() };
         ids.add(word.id);
         shared.words.push(word);
         return word.id;
       });
       local.set(SHARED_KEY, shared);
-      return { words: shared.words, added };
+      return { ...vocabOf(shared), added };
     },
     async updateWord(id, fields) {
       const shared = loadShared();
       const word = shared.words.find((w) => w.id === id);
       if (!word) throw new Error('Wort nicht gefunden – wurde es inzwischen gelöscht?');
       Object.assign(word, fields);
+      if (fields.groups) word.groups = cleanGroups(shared, fields.groups);
       local.set(SHARED_KEY, shared);
-      return { words: shared.words };
+      return vocabOf(shared);
+    },
+    async updateWords(list) {
+      const shared = loadShared();
+      for (const { id, ...fields } of list) {
+        const word = shared.words.find((w) => w.id === id);
+        if (!word) continue;
+        Object.assign(word, fields);
+        if (fields.groups) word.groups = cleanGroups(shared, fields.groups);
+      }
+      local.set(SHARED_KEY, shared);
+      return vocabOf(shared);
     },
     async deleteWord(id) {
       const shared = loadShared();
       shared.words = shared.words.filter((w) => w.id !== id);
       local.set(SHARED_KEY, shared);
-      return { words: shared.words };
+      return vocabOf(shared);
+    },
+    async ensureGroups(names) {
+      const shared = loadShared();
+      for (const name of names.map(cleanGroupName)) {
+        if (!name) throw new Error('Gruppenname fehlt');
+        if (!shared.groups.some((g) => g.name.toLowerCase() === name.toLowerCase())) {
+          shared.groups.push({ id: newId(), name, created: Date.now() });
+        }
+      }
+      local.set(SHARED_KEY, shared);
+      return vocabOf(shared);
+    },
+    async renameGroup(id, raw) {
+      const shared = loadShared();
+      const group = shared.groups.find((g) => g.id === id);
+      if (!group) throw new Error('Gruppe nicht gefunden – wurde sie inzwischen gelöscht?');
+      const name = cleanGroupName(raw);
+      if (!name) throw new Error('Gruppenname fehlt');
+      if (shared.groups.some((g) => g !== group && g.name.toLowerCase() === name.toLowerCase())) throw new Error(`Die Gruppe „${name}“ gibt es schon`);
+      group.name = name;
+      local.set(SHARED_KEY, shared);
+      return vocabOf(shared);
+    },
+    async deleteGroup(id, withWords) {
+      const shared = loadShared();
+      shared.groups = shared.groups.filter((g) => g.id !== id);
+      if (withWords) shared.words = shared.words.filter((w) => !(w.groups || []).includes(id));
+      for (const w of shared.words) if (w.groups?.includes(id)) w.groups = w.groups.filter((g) => g !== id);
+      local.set(SHARED_KEY, shared);
+      return vocabOf(shared);
     },
   };
 
@@ -142,6 +192,7 @@
     profile: null,
     profiles: [],
     words: [],
+    groups: [], // { id, name } – words list the ids of their groups in word.groups
     user: {}, // statistics and settings of the active profile: { kana, vocab }
   };
   let backend = null;
@@ -181,14 +232,16 @@
 
   // ---------- Words ----------
 
-  function setWords(list) {
-    KanaStore.words.splice(0, KanaStore.words.length, ...list);
+  // The arrays are kept (and filled in place), the views hold on to them.
+  function setVocab({ words, groups }) {
+    KanaStore.words.splice(0, KanaStore.words.length, ...(words || []));
+    KanaStore.groups.splice(0, KanaStore.groups.length, ...(groups || []));
   }
 
   async function wordCall(promise) {
     try {
       const res = await promise;
-      setWords(res.words);
+      setVocab(res);
       return res;
     } catch (e) {
       toast(e.message);
@@ -200,7 +253,7 @@
 
   async function refreshWords() {
     try {
-      setWords((await backend.words()).words);
+      setVocab(await backend.words());
     } catch {
       // Keep the list we have.
     }
@@ -209,7 +262,11 @@
   const by = () => KanaStore.profile?.name || '';
   KanaStore.addWords = (list) => wordCall(backend.addWords(list.map((w) => ({ by: by(), ...w }))));
   KanaStore.updateWord = (id, fields) => wordCall(backend.updateWord(id, fields));
+  KanaStore.updateWords = (list) => wordCall(backend.updateWords(list));
   KanaStore.deleteWord = (id) => wordCall(backend.deleteWord(id));
+  KanaStore.ensureGroups = (names) => wordCall(backend.ensureGroups(names));
+  KanaStore.renameGroup = (id, name) => wordCall(backend.renameGroup(id, name));
+  KanaStore.deleteGroup = (id, withWords) => wordCall(backend.deleteGroup(id, withWords));
   KanaStore.refreshWords = refreshWords;
   KanaStore.saveUser = saveUser;
 
@@ -383,7 +440,7 @@
     KanaStore.mode = b.mode;
     KanaStore.me = state.me;
     KanaStore.profiles = state.profiles;
-    setWords(state.words);
+    setVocab(state);
 
     let id = local.get(choiceKey(), null);
     if (!KanaStore.profiles.some((p) => p.id === id)) {

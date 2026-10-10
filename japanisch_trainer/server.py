@@ -2,7 +2,7 @@
 """Japanisch Trainer server: serves the web app and stores the data as JSON files.
 
 Data layout in the data directory:
-  shared.json            profiles and the vocabulary list everybody shares
+  shared.json            profiles, the vocabulary list and its groups – shared by everybody
   users/<profile>.json   statistics and settings of one profile
 
 Behind Home Assistant ingress, the Supervisor adds the logged-in user as
@@ -21,11 +21,12 @@ import time
 import uuid
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 MAX_BODY = 5 * 1024 * 1024
-WORD_LIMITS = {"de": 200, "jp": 200, "kana": 200, "note": 500}
+WORD_LIMITS = {"de": 200, "jp": 200, "kana": 200, "kanji": 200, "note": 500}
+GROUP_NAME_LIMIT = 60
 
 lock = threading.Lock()
 config = {"data": "data", "trusted": None}
@@ -56,10 +57,15 @@ def load_shared():
     shared = read_json(data_path("shared.json"), {})
     shared.setdefault("profiles", [])
     shared.setdefault("words", [])
+    shared.setdefault("groups", [])
     return shared
 
 
-def clean_word(raw, existing=None):
+def vocab(shared):
+    return {"words": shared["words"], "groups": shared["groups"]}
+
+
+def clean_word(raw, shared, existing=None):
     if not isinstance(raw, dict):
         raise ValueError("Wort fehlt")
     word = dict(existing or {})
@@ -69,9 +75,21 @@ def clean_word(raw, existing=None):
             if not isinstance(value, str):
                 raise ValueError(f"{key} muss Text sein")
             word[key] = value.strip()[:limit]
+    if "groups" in raw or existing is None:
+        groups = raw.get("groups") or []
+        if not isinstance(groups, list):
+            raise ValueError("Gruppen müssen eine Liste sein")
+        known = {g["id"] for g in shared["groups"]}
+        word["groups"] = list(dict.fromkeys(g for g in groups if isinstance(g, str) and g in known))
     if not word["de"] or not word["jp"]:
         raise ValueError("Deutsch und Japanisch sind Pflichtfelder")
     return word
+
+
+def clean_group_name(name):
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("Gruppenname fehlt")
+    return " ".join(name.split())[:GROUP_NAME_LIMIT]
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -133,32 +151,34 @@ class Handler(SimpleHTTPRequestHandler):
         path = urlparse(self.path).path
         if not path.startswith("/api/"):
             return super().do_GET()
-        self.handle_api("GET", path)
+        self.handle_api("GET")
 
     def do_POST(self):
         if self.allowed():
-            self.handle_api("POST", urlparse(self.path).path)
+            self.handle_api("POST")
 
     def do_PUT(self):
         if self.allowed():
-            self.handle_api("PUT", urlparse(self.path).path)
+            self.handle_api("PUT")
 
     def do_DELETE(self):
         if self.allowed():
-            self.handle_api("DELETE", urlparse(self.path).path)
+            self.handle_api("DELETE")
 
-    def handle_api(self, method, path):
-        parts = path.strip("/").split("/")[1:]  # drop "api"
+    def handle_api(self, method):
+        url = urlparse(self.path)
+        parts = url.path.strip("/").split("/")[1:]  # drop "api"
+        query = parse_qs(url.query)
         try:
             body = self.read_body() if method in ("POST", "PUT") else None
             with lock:
-                self.route(method, parts, body)
+                self.route(method, parts, body, query)
         except json.JSONDecodeError:
             self.fail("Ungültige Daten")
         except ValueError as e:
             self.fail(str(e))
 
-    def route(self, method, parts, body):
+    def route(self, method, parts, body, query):
         if parts == ["state"] and method == "GET":
             return self.get_state()
         if parts == ["profiles"] and method == "POST":
@@ -179,18 +199,26 @@ class Handler(SimpleHTTPRequestHandler):
                 write_json(data_path("users", pid + ".json"), body)
                 return self.send_json({"ok": True})
         if parts == ["words"] and method == "GET":
-            return self.send_json({"words": load_shared()["words"]})
+            return self.send_json(vocab(load_shared()))
         if parts == ["words"] and method == "POST":
             return self.add_words(body)
+        if parts == ["words"] and method == "PUT":
+            return self.update_words(body)
         if len(parts) == 2 and parts[0] == "words" and method in ("PUT", "DELETE"):
             return self.change_word(method, parts[1], body)
+        if parts == ["groups"] and method == "POST":
+            return self.ensure_groups(body)
+        if len(parts) == 2 and parts[0] == "groups" and method == "PUT":
+            return self.rename_group(parts[1], body)
+        if len(parts) == 2 and parts[0] == "groups" and method == "DELETE":
+            return self.delete_group(parts[1], query.get("words") == ["1"])
         self.fail("Nicht gefunden", HTTPStatus.NOT_FOUND)
 
     # ---------- endpoints ----------
 
     def get_state(self):
         shared = load_shared()
-        self.send_json({"me": self.ha_user(), "profiles": shared["profiles"], "words": shared["words"]})
+        self.send_json({"me": self.ha_user(), "profiles": shared["profiles"], **vocab(shared)})
 
     def create_profile(self, body):
         body = body if isinstance(body, dict) else {}
@@ -232,7 +260,7 @@ class Handler(SimpleHTTPRequestHandler):
         ids = {w["id"] for w in shared["words"]}
         added = []
         for raw in items:
-            word = clean_word(raw)
+            word = clean_word(raw, shared)
             wid = raw.get("id")
             word["id"] = wid if isinstance(wid, str) and ID_RE.match(wid) and wid not in ids else uuid.uuid4().hex[:12]
             word["created"] = raw.get("created") if isinstance(raw.get("created"), int) else int(time.time() * 1000)
@@ -242,7 +270,7 @@ class Handler(SimpleHTTPRequestHandler):
             shared["words"].append(word)
             added.append(word["id"])
         write_json(data_path("shared.json"), shared)
-        self.send_json({"words": shared["words"], "added": added})
+        self.send_json({**vocab(shared), "added": added})
 
     def change_word(self, method, wid, body):
         shared = load_shared()
@@ -252,9 +280,61 @@ class Handler(SimpleHTTPRequestHandler):
         if method == "DELETE":
             shared["words"].pop(index)
         else:
-            shared["words"][index] = clean_word(body, shared["words"][index])
+            shared["words"][index] = clean_word(body, shared, shared["words"][index])
         write_json(data_path("shared.json"), shared)
-        self.send_json({"words": shared["words"]})
+        self.send_json(vocab(shared))
+
+    def update_words(self, body):
+        # Several words at once, e.g. when an import adds groups to words that already exist.
+        items = (body or {}).get("words") if isinstance(body, dict) else None
+        if not isinstance(items, list):
+            return self.fail("Wörter fehlen")
+        shared = load_shared()
+        index = {w["id"]: i for i, w in enumerate(shared["words"])}
+        for raw in items:
+            wid = raw.get("id") if isinstance(raw, dict) else None
+            i = index.get(wid) if isinstance(wid, str) else None
+            if i is not None:  # words deleted in the meantime are skipped
+                shared["words"][i] = clean_word(raw, shared, shared["words"][i])
+        write_json(data_path("shared.json"), shared)
+        self.send_json(vocab(shared))
+
+    def ensure_groups(self, body):
+        # Creates the groups that do not exist yet; names are matched ignoring case.
+        names = (body or {}).get("names") if isinstance(body, dict) else None
+        if not isinstance(names, list):
+            return self.fail("Gruppennamen fehlen")
+        shared = load_shared()
+        known = {g["name"].casefold() for g in shared["groups"]}
+        for name in map(clean_group_name, names):
+            if name.casefold() not in known:
+                known.add(name.casefold())
+                shared["groups"].append({"id": uuid.uuid4().hex[:12], "name": name, "created": int(time.time() * 1000)})
+        write_json(data_path("shared.json"), shared)
+        self.send_json(vocab(shared))
+
+    def rename_group(self, gid, body):
+        shared = load_shared()
+        group = next((g for g in shared["groups"] if g["id"] == gid), None)
+        if not group:
+            return self.fail("Gruppe nicht gefunden – wurde sie inzwischen gelöscht?", HTTPStatus.NOT_FOUND)
+        name = clean_group_name((body or {}).get("name") if isinstance(body, dict) else None)
+        if any(g is not group and g["name"].casefold() == name.casefold() for g in shared["groups"]):
+            return self.fail(f"Die Gruppe „{name}“ gibt es schon")
+        group["name"] = name
+        write_json(data_path("shared.json"), shared)
+        self.send_json(vocab(shared))
+
+    def delete_group(self, gid, with_words):
+        shared = load_shared()
+        shared["groups"] = [g for g in shared["groups"] if g["id"] != gid]
+        if with_words:
+            shared["words"] = [w for w in shared["words"] if gid not in w.get("groups", [])]
+        for w in shared["words"]:
+            if gid in w.get("groups", []):
+                w["groups"] = [g for g in w["groups"] if g != gid]
+        write_json(data_path("shared.json"), shared)
+        self.send_json(vocab(shared))
 
 
 def main():

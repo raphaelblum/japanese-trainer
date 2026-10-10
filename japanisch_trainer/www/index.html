@@ -173,9 +173,17 @@
           <button type="button" data-dir="both"><span class="lg">Beide Richtungen</span><span class="sm">Beide</span></button>
           <button type="button" data-dir="dj"><span class="lg">Deutsch → Japanisch</span><span class="sm">DE → JP</span></button>
           <button type="button" data-dir="jd"><span class="lg">Japanisch → Deutsch</span><span class="sm">JP → DE</span></button>
+          <button type="button" data-dir="kr"><span class="lg">Kanji lesen</span><span class="sm" lang="ja">漢字</span></button>
         </div>
-        <a class="btn ghost" href="#words"><span class="lg">Wörter verwalten</span><span class="sm">Wörter</span> <span class="count" id="vocab-count"></span></a>
+        <div class="toolbar-group">
+          <button type="button" class="btn ghost" id="v-groups-toggle" aria-expanded="false" aria-controls="v-groups" hidden>
+            <span id="v-groups-label">Alle Wörter</span> <span class="count" id="v-groups-count"></span>
+          </button>
+          <a class="btn ghost" href="#words"><span class="lg">Wörter verwalten</span><span class="sm">Wörter</span> <span class="count" id="vocab-count"></span></a>
+        </div>
       </div>
+
+      <div class="panel" id="v-groups" hidden></div>
 
       <div class="card vocab-card" id="vcard">
         <div class="card-meta" id="v-meta"></div>
@@ -191,17 +199,23 @@
           <span class="item-info" id="v-info"></span>
         </div>
         <div class="empty" id="v-empty" hidden>
-          <p>Du hast noch keine eigenen Wörter.</p>
-          <a class="btn primary" href="#words">Erstes Wort hinzufügen</a>
+          <p id="v-empty-text">Du hast noch keine eigenen Wörter.</p>
+          <a class="btn primary" href="#words" id="v-empty-link">Erstes Wort hinzufügen</a>
+          <button type="button" class="btn primary" id="v-empty-all" hidden>Alle Wörter üben</button>
         </div>
       </div>
 
       <div class="session" id="v-session"></div>
-      <p class="hint">Enter = prüfen / weiter · Mehrere richtige Antworten im Wort mit „/“ oder „,“ trennen · Lange Vokale: oo, ou und ō zählen gleich.</p>
+      <p class="hint">Enter = prüfen / weiter · Mehrere richtige Antworten im Wort mit „/“ oder „,“ trennen · Lange Vokale: oo, ou und ō zählen gleich · Japanisch darfst du auch in Kana oder Kanji eintippen.</p>
     </section>
 
     <!-- Vokabeltrainer: Meine Wörter -->
     <section id="view-words" class="view" aria-label="Meine Wörter" hidden>
+      <div class="banner" id="upgrade-banner" hidden>
+        <span><strong id="upgrade-count"></strong> Kanji oder Lektionsangaben noch in der Notiz bzw. im Kana-Feld. Soll ich sie in die Felder Kanji und Gruppen übernehmen?</span>
+        <button type="button" class="btn small" id="upgrade-run">Übernehmen</button>
+      </div>
+
       <div class="block">
         <div class="block-head">
           <h2 id="word-form-title">Wort hinzufügen</h2>
@@ -216,13 +230,21 @@
             <input name="jp" required placeholder="z. B. ichigo" autocapitalize="off" spellcheck="false">
           </label>
           <label>
-            <span>Kana / Kanji <small>optional</small></span>
+            <span>Kana <small>optional</small></span>
             <input name="kana" placeholder="z. B. いちご" lang="ja" spellcheck="false">
           </label>
           <label>
+            <span>Kanji <small>optional</small></span>
+            <input name="kanji" placeholder="z. B. 苺" lang="ja" spellcheck="false">
+          </label>
+          <label class="wide">
             <span>Notiz <small>optional</small></span>
             <input name="note" placeholder="z. B. auch: Erdbeerkuchen = ichigo keeki">
           </label>
+          <div class="form-groups-field">
+            <span>Gruppen <small>optional – bleiben fürs nächste Wort ausgewählt</small></span>
+            <div class="chips" id="form-groups"></div>
+          </div>
           <div class="word-form-actions">
             <span class="sub" id="word-form-msg" aria-live="polite"></span>
             <button type="button" class="btn ghost" id="word-cancel" hidden>Abbrechen</button>
@@ -231,20 +253,45 @@
         </form>
         <details class="bulk">
           <summary>Mehrere Wörter auf einmal einfügen</summary>
-          <p class="sub">Ein Wort pro Zeile: <code>Deutsch = Romaji</code>, optional <code>= Kana</code>. Beispiel: <code>Erdbeere = ichigo = いちご</code></p>
-          <textarea id="bulk-text" rows="5" spellcheck="false" placeholder="Erdbeere = ichigo = いちご&#10;Apfel = ringo&#10;Katze = neko = ねこ"></textarea>
+          <p class="sub">
+            Ein Wort pro Zeile: <code>Deutsch = Romaji = Kana = Kanji = Notiz</code> – nur Deutsch und Romaji sind Pflicht.
+            Kanji und Notiz dürfen auch mit <code>·</code> getrennt sein. <code>L1</code> am Ende kommt in die Gruppe „Lektion 1“, <code>#Monate</code> in die Gruppe „Monate“.
+            Wörter, die es schon gibt, bekommen die neuen Gruppen und fehlende Kanji dazu.
+          </p>
+          <textarea id="bulk-text" rows="5" spellcheck="false" placeholder="Erdbeere = ichigo = いちご = 苺&#10;Lehrer = sensei = せんせい = 先生 · L1&#10;Januar = ichigatsu = いちがつ = 一月 = #Monate&#10;Apfel = ringo"></textarea>
           <div class="word-form-actions">
+            <label class="bulk-group">
+              <span>Alle in Gruppe <small>optional</small></span>
+              <input id="bulk-group" list="group-names" maxlength="60" placeholder="z. B. Minna no Nihongo 1" autocomplete="off">
+            </label>
             <span class="sub" id="bulk-msg" aria-live="polite"></span>
             <button type="button" class="btn ghost" id="bulk-add">Alle hinzufügen</button>
           </div>
+          <datalist id="group-names"></datalist>
         </details>
       </div>
 
       <div class="block">
         <div class="block-head">
-          <h2>Meine Wörter <span class="count-pill" id="words-count"></span></h2>
-          <input type="search" id="word-search" class="search" enterkeyhint="search" placeholder="Suchen …" aria-label="Wörter durchsuchen">
+          <h2>Gruppen <span class="count-pill" id="groups-count"></span></h2>
+          <form id="group-form" class="group-form" autocomplete="off">
+            <input name="name" class="search" maxlength="60" placeholder="Neue Gruppe, z. B. Monate" aria-label="Name der neuen Gruppe">
+            <button type="submit" class="btn ghost small">Anlegen</button>
+          </form>
         </div>
+        <p class="sub">Im Quiz kannst du oben über „Alle Wörter“ einzelne Gruppen auswählen. Ein Wort kann in mehreren Gruppen sein.</p>
+        <div class="group-list" id="group-list"></div>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <h2>Meine Wörter <span class="count-pill" id="words-count"></span></h2>
+          <div class="word-tools">
+            <select id="word-group-filter" class="search" aria-label="Nach Gruppe filtern" hidden></select>
+            <input type="search" id="word-search" class="search" enterkeyhint="search" placeholder="Suchen …" aria-label="Wörter durchsuchen">
+          </div>
+        </div>
+        <select id="word-bulk-group" class="search bulk-group-select" aria-label="Angezeigte Wörter einer Gruppe zuordnen" hidden></select>
         <div class="word-list" id="word-list"></div>
       </div>
     </section>
