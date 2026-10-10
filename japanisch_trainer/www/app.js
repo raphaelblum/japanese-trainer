@@ -15,7 +15,7 @@ window.KanaStore.ready.then(() => {
     sentence: 'Leer- und Satzzeichen sind egal · は als Partikel = wa, を = o, へ = e · Katakana = Sätze mit überwiegend Katakana, Sätze mit nur einzelnen Lehnwörtern gibt es unter „Beide“.',
   };
 
-  const { $, $$, h, pct, setSegmented } = window.KanaUtil;
+  const { $, $$, h, pct, setSegmented, focusAnswer, answerField } = window.KanaUtil;
 
   // ---------- Persistence ----------
 
@@ -93,6 +93,7 @@ window.KanaStore.ready.then(() => {
   const quiz = {
     current: null, // kana object, or a word/sentence item in the other modes
     answered: false,
+    lastOk: false,
     recent: [],
     recentItems: [],
     retry: [], // { id, at } – missed kana come back a few questions later
@@ -186,12 +187,12 @@ window.KanaStore.ready.then(() => {
 
   function resetAnswerUi() {
     ui.input.value = '';
-    ui.input.readOnly = false;
+    ui.input.removeAttribute('aria-readonly');
     ui.submit.textContent = 'Prüfen';
     ui.feedback.replaceChildren();
     ui.skip.disabled = false;
     ui.info.textContent = '';
-    if (!document.hidden && currentView() === 'quiz') ui.input.focus({ preventScroll: true });
+    if (!document.hidden && currentView() === 'quiz') focusAnswer(ui.input);
   }
 
   const normalize = (s) => s.trim().toLowerCase().replace(/[\s'’`-]/g, '');
@@ -235,6 +236,7 @@ window.KanaStore.ready.then(() => {
 
     const ok = !skipped && kana.accept.includes(given);
     quiz.answered = true;
+    quiz.lastOk = ok;
     record(kana, ok, skipped ? null : given);
 
     countSession(ok);
@@ -242,7 +244,7 @@ window.KanaStore.ready.then(() => {
       quiz.retry.push({ id: kana.id, at: quiz.tick + 3 + Math.floor(Math.random() * 3) });
     }
 
-    ui.input.readOnly = true;
+    ui.input.setAttribute('aria-readonly', 'true');
     ui.skip.disabled = true;
     ui.card.classList.add(ok ? 'is-correct' : 'is-wrong');
 
@@ -340,6 +342,7 @@ window.KanaStore.ready.then(() => {
     const result = skipped ? null : grade(item.words, ui.input.value);
     const ok = !!result?.ok;
     quiz.answered = true;
+    quiz.lastOk = ok;
 
     // Every kana in the phrase counts towards its own statistics. Skipping says
     // nothing about the individual kana, so it only counts for the phrase itself.
@@ -356,7 +359,7 @@ window.KanaStore.ready.then(() => {
     save();
     countSession(ok);
 
-    ui.input.readOnly = true;
+    ui.input.setAttribute('aria-readonly', 'true');
     ui.skip.disabled = true;
     ui.card.classList.add(ok ? 'is-correct' : 'is-wrong');
     ui.submit.textContent = 'Weiter';
@@ -797,6 +800,8 @@ window.KanaStore.ready.then(() => {
     const view = currentView();
     const section = sectionOf(view);
     for (const v of VIEWS) $(`#view-${v}`).hidden = v !== view;
+    // A field in a view that was just hidden must not keep the compact answer layout.
+    if (document.activeElement?.closest('.view[hidden]')) document.activeElement.blur();
     $$('.tabs').forEach((nav) => (nav.hidden = nav.dataset.section !== section));
     $$('.tabs a').forEach((a) => (a.dataset.view === view ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
     $('#brand-name').textContent = SECTIONS[section].name;
@@ -809,7 +814,7 @@ window.KanaStore.ready.then(() => {
     if (view === 'table') renderTable();
     if (view === 'quiz') {
       if (!quiz.current) nextQuestion();
-      ui.input.focus({ preventScroll: true });
+      focusAnswer(ui.input);
     }
     if (section === 'vocab') window.Vocab.show(view);
     window.scrollTo(0, 0);
@@ -823,8 +828,9 @@ window.KanaStore.ready.then(() => {
   });
   ui.skip.addEventListener('click', () => {
     submitAnswer(true);
-    ui.input.focus({ preventScroll: true });
+    focusAnswer(ui.input);
   });
+  answerField(ui.card, ui.input, { locked: () => quiz.answered, typeAhead: () => quiz.lastOk, next: nextQuestion });
   ui.toggleSettings.addEventListener('click', () => toggleSettings());
   $('#quiz-mode').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-mode]');

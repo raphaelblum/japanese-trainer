@@ -2,7 +2,9 @@
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#f6f2ea" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141317" media="(prefers-color-scheme: dark)">
   <title>Japanisch Trainer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -61,9 +63,9 @@
           <button type="button" data-mode="sentence">Sätze</button>
         </div>
         <div class="seg" id="quiz-script" role="group" aria-label="Schrift">
-          <button type="button" data-script="h">Hiragana</button>
-          <button type="button" data-script="k">Katakana</button>
-          <button type="button" data-script="hk">Beide</button>
+          <button type="button" data-script="h" aria-label="Hiragana"><span class="lg">Hiragana</span><span class="sm" lang="ja">あ</span></button>
+          <button type="button" data-script="k" aria-label="Katakana"><span class="lg">Katakana</span><span class="sm" lang="ja">ア</span></button>
+          <button type="button" data-script="hk" aria-label="Beide"><span class="lg">Beide</span><span class="sm" lang="ja">あア</span></button>
         </div>
         <div class="seg" id="quiz-level" role="group" aria-label="Schwierigkeit" hidden>
           <button type="button" data-level="1">Leicht</button>
@@ -88,7 +90,7 @@
         <div class="kana" id="kana" lang="ja"></div>
         <div class="phrase" id="phrase" lang="ja" hidden></div>
         <form id="answer-form" class="answer" autocomplete="off">
-          <input id="answer" type="text" inputmode="latin" autocapitalize="off" autocorrect="off" spellcheck="false"
+          <input id="answer" type="text" inputmode="latin" enterkeyhint="go" autocapitalize="off" autocorrect="off" spellcheck="false"
                  placeholder="Romaji eintippen …" aria-label="Romaji">
           <button type="submit" class="btn primary" id="submit-btn">Prüfen</button>
         </form>
@@ -172,7 +174,7 @@
           <button type="button" data-dir="dj"><span class="lg">Deutsch → Japanisch</span><span class="sm">DE → JP</span></button>
           <button type="button" data-dir="jd"><span class="lg">Japanisch → Deutsch</span><span class="sm">JP → DE</span></button>
         </div>
-        <a class="btn ghost" href="#words">Wörter verwalten <span class="count" id="vocab-count"></span></a>
+        <a class="btn ghost" href="#words"><span class="lg">Wörter verwalten</span><span class="sm">Wörter</span> <span class="count" id="vocab-count"></span></a>
       </div>
 
       <div class="card vocab-card" id="vcard">
@@ -180,7 +182,7 @@
         <div class="v-prompt" id="v-prompt"></div>
         <div class="v-sub" id="v-sub"></div>
         <form id="v-form" class="answer" autocomplete="off">
-          <input id="v-answer" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Antwort">
+          <input id="v-answer" type="text" enterkeyhint="go" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Antwort">
           <button type="submit" class="btn primary" id="v-submit">Prüfen</button>
         </form>
         <div class="feedback" id="v-feedback" aria-live="polite"></div>
@@ -241,7 +243,7 @@
       <div class="block">
         <div class="block-head">
           <h2>Meine Wörter <span class="count-pill" id="words-count"></span></h2>
-          <input type="search" id="word-search" class="search" placeholder="Suchen …" aria-label="Wörter durchsuchen">
+          <input type="search" id="word-search" class="search" enterkeyhint="search" placeholder="Suchen …" aria-label="Wörter durchsuchen">
         </div>
         <div class="word-list" id="word-list"></div>
       </div>

@@ -279,7 +279,7 @@ main { max-width: 880px; margin: 0 auto; padding: 20px 16px 64px; }
   text-align: center;
 }
 .answer input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.answer input[readonly] { opacity: 0.8; }
+.answer input[aria-readonly="true"] { opacity: 0.8; caret-color: transparent; }
 .shake { animation: shake 0.3s; }
 @keyframes shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
 
@@ -434,7 +434,6 @@ button.cell:hover { border-color: var(--accent); }
 
 @media (max-width: 400px) {
   .brand span:last-child { display: none; }
-  .answer { flex-direction: column; }
   .kgrid { gap: 4px; }
 }
 
@@ -509,7 +508,9 @@ body[data-section="home"] .brand-text small { display: none; }
   text-decoration: none;
   transition: border-color 0.15s, transform 0.15s;
 }
-.home-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+@media (hover: hover) {
+  .home-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+}
 .home-mark {
   flex: none;
   display: grid;
@@ -604,14 +605,18 @@ a.btn { display: inline-block; text-decoration: none; }
 .w-actions { display: flex; gap: 6px; }
 .btn.danger:hover:not(:disabled) { border-color: var(--bad); color: var(--bad); }
 
-#vocab-dir .sm { display: none; }
+.sm { display: none; }
 
 @media (max-width: 640px) {
-  #vocab-dir .lg { display: none; }
-  #vocab-dir .sm { display: inline; }
+  .lg { display: none; }
+  .sm { display: inline; }
   .word-form { grid-template-columns: 1fr; }
-  .word-row { grid-template-columns: minmax(0, 1fr) auto; }
-  .w-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  .word-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main stats" "main actions"; }
+  .w-main { grid-area: main; }
+  .w-stats { grid-area: stats; }
+  .w-actions { grid-area: actions; justify-content: flex-end; align-self: end; }
+  .w-actions .btn { padding: 7px 9px; }
+  .icon svg { display: block; }
   .home-mark { width: 60px; height: 60px; }
 }
 
@@ -717,3 +722,59 @@ a.btn { display: inline-block; text-decoration: none; }
   .chip-name { display: none; }
   .profile-chip { padding: 3px; }
 }
+
+/* ---------- Phones ---------- */
+
+button, a, summary, .chip { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+@media (max-width: 640px) {
+  main { padding-top: 14px; }
+  .toolbar { gap: 8px; margin-bottom: 12px; }
+  .toolbar > .btn { padding: 8px 12px; }
+  .seg button { padding: 8px 11px; }
+  #quiz-script .sm { font-size: 1rem; line-height: 1.35; }
+  .card { padding: 16px 14px 12px; }
+  .answer .btn { padding: 10px 16px; }
+  .card-foot .link { padding: 8px 0; }
+  .override { padding: 6px 4px; }
+  .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  /* Below 16px iOS zooms into the page when the field is focused. */
+  .search { font-size: 1rem; width: 100%; }
+  .block-head h2 { flex: 1; }
+}
+
+@media (max-width: 360px) {
+  .topbar-inner { gap: 6px; padding-inline: 12px; }
+  .brand-mark { width: 34px; height: 34px; }
+  .tabs { padding: 3px; gap: 2px; }
+  .tabs a { padding: 6px 8px; font-size: 0.85rem; }
+  main { padding-inline: 12px; }
+  .seg button { padding: 8px 10px; }
+}
+
+/* While typing an answer on a touch device (see KanaUtil.answerField) only the
+   card is left, sized so that prompt, field and feedback fit above the keyboard. */
+body.answering .topbar,
+body.answering .toolbar,
+body.answering .banner,
+body.answering #settings,
+body.answering .session,
+body.answering .hint { display: none !important; }
+body.answering main { padding-top: 8px; padding-bottom: 24px; }
+body.answering .card { padding: 10px 14px 8px; border-radius: 16px; }
+body.answering .card-meta { font-size: 0.72rem; }
+body.answering .kana { font-size: 5.4rem; margin: 0 0 8px; }
+body.answering .kana.long { font-size: 4.2rem; padding: 0; }
+body.answering .phrase { margin: 6px 0 12px; }
+body.answering .phrase.word { font-size: 2.4rem; }
+body.answering .phrase.sentence { font-size: 1.45rem; }
+body.answering .v-prompt { font-size: 2.3rem; margin: 6px 0 0; }
+body.answering .v-prompt.long { font-size: 1.6rem; }
+body.answering .v-sub { font-size: 1rem; margin-bottom: 10px; min-height: 1.4em; }
+body.answering .answer input { padding: 8px 12px; }
+body.answering .answer .btn { padding: 8px 14px; }
+body.answering .feedback { margin-top: 8px; min-height: 1.6em; font-size: 1rem; }
+body.answering .fb-answer { font-size: 1.15rem; }
+body.answering .breakdown { margin-top: 6px; gap: 6px 12px; }
+body.answering .meaning { margin-top: 6px; }
+body.answering .card-foot { margin-top: 0; }

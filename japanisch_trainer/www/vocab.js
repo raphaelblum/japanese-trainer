@@ -4,7 +4,7 @@
 window.KanaStore.ready.then(() => {
   'use strict';
 
-  const { $, $$, h, pct, setSegmented } = window.KanaUtil;
+  const { $, $$, h, pct, setSegmented, focusAnswer, answerField } = window.KanaUtil;
   const { tokenize, normalizeInput } = window.KanaSentences;
 
   const HISTORY_LEN = 10;
@@ -209,12 +209,12 @@ window.KanaStore.ready.then(() => {
     ui.prompt.classList.add('pop');
 
     ui.input.value = '';
-    ui.input.readOnly = false;
+    ui.input.removeAttribute('aria-readonly');
     ui.submit.textContent = 'Prüfen';
     ui.feedback.replaceChildren();
     ui.skip.disabled = false;
     ui.info.textContent = '';
-    if (!document.hidden && inVocabQuiz()) ui.input.focus({ preventScroll: true });
+    if (!document.hidden && inVocabQuiz()) focusAnswer(ui.input);
   }
 
   function countSession(ok, delta = 1) {
@@ -260,7 +260,7 @@ window.KanaStore.ready.then(() => {
       quiz.retry.push({ id: word.id, dir, at: quiz.tick + 3 + Math.floor(Math.random() * 3) });
     }
 
-    ui.input.readOnly = true;
+    ui.input.setAttribute('aria-readonly', 'true');
     ui.skip.disabled = true;
     ui.submit.textContent = 'Weiter';
     ui.card.classList.add(result.ok ? 'is-correct' : 'is-wrong');
@@ -322,7 +322,8 @@ window.KanaStore.ready.then(() => {
     $('.override', ui.feedback)?.replaceWith(h('div', { class: 'fb-note' }, 'Als richtig gezählt.'));
     ui.info.textContent = `Bisher ${s.c}× richtig · ${s.w}× falsch`;
     renderSession();
-    ui.submit.focus();
+    // Back to the field: Enter continues, and on phones the keyboard stays open.
+    focusAnswer(ui.input);
   }
 
   function renderSession() {
@@ -495,6 +496,17 @@ window.KanaStore.ready.then(() => {
     );
   }
 
+  // Feather-style line icons for the narrow layout, where the button labels do not fit.
+  const ICONS = {
+    edit: 'M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z',
+    delete: 'M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2',
+  };
+  function icon(name) {
+    const node = h('span', { class: 'sm icon', 'aria-hidden': 'true' });
+    node.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${ICONS[name]}"/></svg>`;
+    return node;
+  }
+
   function renderWords() {
     const query = $('#word-search').value.trim().toLowerCase();
     const words = [...store.words]
@@ -527,8 +539,8 @@ window.KanaStore.ready.then(() => {
           h(
             'div',
             { class: 'w-actions' },
-            h('button', { type: 'button', class: 'btn ghost small', onclick: () => startEdit(word) }, 'Bearbeiten'),
-            h('button', { type: 'button', class: 'btn ghost small danger', onclick: () => deleteWord(word), 'aria-label': `${word.de} löschen` }, 'Löschen'),
+            h('button', { type: 'button', class: 'btn ghost small', onclick: () => startEdit(word), 'aria-label': `${word.de} bearbeiten` }, h('span', { class: 'lg' }, 'Bearbeiten'), icon('edit')),
+            h('button', { type: 'button', class: 'btn ghost small danger', onclick: () => deleteWord(word), 'aria-label': `${word.de} löschen` }, h('span', { class: 'lg' }, 'Löschen'), icon('delete')),
           ),
         ),
       ),
@@ -543,8 +555,9 @@ window.KanaStore.ready.then(() => {
   });
   ui.skip.addEventListener('click', () => {
     submitAnswer(true);
-    ui.input.focus({ preventScroll: true });
+    focusAnswer(ui.input);
   });
+  answerField(ui.card, ui.input, { locked: () => quiz.answered, typeAhead: () => quiz.lastOk, next: nextQuestion });
   $('#vocab-dir').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-dir]');
     if (!btn) return;
@@ -572,7 +585,7 @@ window.KanaStore.ready.then(() => {
       if (!current) nextQuestion();
       else {
         quiz.current.word = current;
-        ui.input.focus({ preventScroll: true });
+        focusAnswer(ui.input);
       }
     }
     if (view === 'words') {
