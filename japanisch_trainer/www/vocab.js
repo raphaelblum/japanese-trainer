@@ -619,6 +619,25 @@ window.KanaStore.ready.then(() => {
     renderWords();
   }
 
+  async function deleteAllWords() {
+    const n = store.words.length;
+    if (!n) return;
+    if (!confirm(`Willst du alle ${n} Wörter löschen?`)) return;
+    if (!confirm(`Willst du WIRKLICH alle ${n} Wörter löschen? Sie verschwinden für alle, auch die Statistik dazu. Das kann nicht rückgängig gemacht werden.`)) return;
+    try {
+      await KanaStore.deleteAllWords();
+    } catch {
+      return;
+    }
+    data.stats = {};
+    save();
+    if (editingId) stopEdit();
+    quiz.current = null;
+    renderVocabLists();
+    KanaStore.toast('Alle Wörter gelöscht');
+  }
+  $('#delete-all-words').addEventListener('click', deleteAllWords);
+
   let busy = false;
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -942,6 +961,7 @@ window.KanaStore.ready.then(() => {
       .filter((w) => !filter || (filter === '-' ? !groupsOf(w).length : w.groups?.includes(filter)))
       .filter((w) => !query || [w.de, w.jp, w.kana, w.kanji, w.note, ...groupsOf(w).map((g) => g.name)].some((x) => x && x.toLowerCase().includes(query)));
     $('#words-count').textContent = store.words.length || '';
+    $('#delete-all-words').hidden = !store.words.length;
     renderBulkGroup(words);
 
     if (!store.words.length) {

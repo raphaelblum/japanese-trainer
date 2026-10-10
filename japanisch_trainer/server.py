@@ -193,6 +193,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self.add_words(body)
         if parts == ["words"] and method == "PUT":
             return self.update_words(body)
+        if parts == ["words"] and method == "DELETE":
+            return self.delete_all_words()
         if len(parts) == 2 and parts[0] == "words" and method in ("PUT", "DELETE"):
             return self.change_word(method, parts[1], body)
         if parts == ["groups"] and method == "POST":
@@ -259,6 +261,13 @@ class Handler(SimpleHTTPRequestHandler):
             shared["words"].pop(index)
         else:
             shared["words"][index] = clean_word(body, shared, shared["words"][index])
+        write_json(data_path("shared.json"), shared)
+        self.send_json(vocab(shared))
+
+    def delete_all_words(self):
+        # Groups stay, they are just empty afterwards.
+        shared = load_shared()
+        shared["words"] = []
         write_json(data_path("shared.json"), shared)
         self.send_json(vocab(shared))
 

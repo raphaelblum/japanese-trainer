@@ -57,6 +57,7 @@
     updateWord: (id, fields) => request('PUT', `api/words/${id}`, fields),
     updateWords: (words) => request('PUT', 'api/words', { words }),
     deleteWord: (id) => request('DELETE', `api/words/${id}`),
+    deleteAllWords: () => request('DELETE', 'api/words'),
     ensureGroups: (names) => request('POST', 'api/groups', { names }),
     renameGroup: (id, name) => request('PUT', `api/groups/${id}`, { name }),
     deleteGroup: (id, withWords) => request('DELETE', `api/groups/${id}${withWords ? '?words=1' : ''}`),
@@ -139,6 +140,12 @@
     async deleteWord(id) {
       const shared = loadShared();
       shared.words = shared.words.filter((w) => w.id !== id);
+      local.set(SHARED_KEY, shared);
+      return vocabOf(shared);
+    },
+    async deleteAllWords() {
+      const shared = loadShared();
+      shared.words = [];
       local.set(SHARED_KEY, shared);
       return vocabOf(shared);
     },
@@ -262,6 +269,7 @@
   KanaStore.updateWord = (id, fields) => wordCall(backend.updateWord(id, fields));
   KanaStore.updateWords = (list) => wordCall(backend.updateWords(list));
   KanaStore.deleteWord = (id) => wordCall(backend.deleteWord(id));
+  KanaStore.deleteAllWords = () => wordCall(backend.deleteAllWords());
   KanaStore.ensureGroups = (names) => wordCall(backend.ensureGroups(names));
   KanaStore.renameGroup = (id, name) => wordCall(backend.renameGroup(id, name));
   KanaStore.deleteGroup = (id, withWords) => wordCall(backend.deleteGroup(id, withWords));
