@@ -707,14 +707,16 @@ select.search { cursor: pointer; }
   box-shadow: var(--shadow);
 }
 .profile-dialog::backdrop { background: rgb(0 0 0 / 0.45); backdrop-filter: blur(2px); }
-.dialog-body { padding: 20px; display: grid; gap: 12px; }
+/* minmax(0, 1fr): the column must not grow past the dialog because of the name input. */
+.dialog-body { padding: 20px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .dialog-body h2 { font-size: 1.3rem; }
 .dialog-body .sub { margin: 0; }
-.profile-list { display: grid; gap: 6px; }
+.profile-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
 .profile-list:empty { display: none; }
 .profile-item { display: flex; align-items: center; gap: 8px; }
 .profile-pick {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -727,11 +729,12 @@ select.search { cursor: pointer; }
   font-weight: 500;
 }
 .profile-pick:hover { border-color: var(--accent); }
+.profile-pick > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-pick small { color: var(--muted); font-weight: 400; }
 .profile-item.current .profile-pick { border-color: var(--accent); background: var(--accent-soft); }
 .profile-delete { font-size: 0.8rem; }
 .profile-new { display: flex; gap: 8px; align-items: flex-end; }
-.profile-new label { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; font-weight: 500; color: var(--ink-2); }
+.profile-new label { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; font-weight: 500; color: var(--ink-2); }
 .profile-new input {
   font: inherit;
   padding: 9px 12px;
@@ -739,6 +742,7 @@ select.search { cursor: pointer; }
   border: 1px solid var(--line);
   background: var(--bg);
   color: var(--ink);
+  width: 100%;
   min-width: 0;
 }
 .profile-new input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
